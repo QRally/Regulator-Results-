@@ -2,157 +2,96 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>THE REGULATOR | RESULTS HQ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REGULATOR | LIVE RESULTS HQ</title>
     <style>
-        :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --row-even: #111; --danger: #e74c3c; }
-        body { font-family: 'Courier New', Courier, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
+        :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --safe: #2ecc71; }
+        body { font-family: 'Courier New', monospace; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
+        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { color: var(--accent); margin: 0; font-size: 1.4rem; letter-spacing: 2px; }
         
-        /* branding */
-        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        h1 { font-weight: 900; color: var(--accent); font-size: 1.5rem; letter-spacing: 2px; margin: 0; }
-        .refresh-btn { background: #222; border: 1px solid #444; color: white; padding: 8px 15px; border-radius: 4px; font-size: 10px; cursor: pointer; }
+        .live-indicator { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--safe); font-weight: bold; }
+        .dot { width: 8px; height: 8px; background: var(--safe); border-radius: 50%; animation: pulse 1.5s infinite; }
 
-        /* stats */
-        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .stat-card { background: #111; padding: 15px; border: 1px solid #333; text-align: center; border-radius: 4px; }
-        .s-val { display: block; font-size: 2rem; color: var(--accent); font-weight: bold; }
-        .s-lbl { font-size: 10px; color: #666; text-transform: uppercase; }
+        .table-container { width: 100%; overflow-x: auto; border: 1px solid #222; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; min-width: 500px; }
+        th { background: #111; color: var(--accent); padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #222; }
+        td { padding: 12px; border-bottom: 1px solid #111; font-size: 14px; }
+        tr:nth-child(even) { background: #0a0a0a; }
 
-        /* The Table Wrapper (Critical for mobile) */
-        .table-wrapper {
-            width: 100%;
-            overflow-x: auto;
-            border-radius: 4px;
-            border: 1px solid #222;
-        }
+        .time-cell { color: var(--safe); font-weight: bold; }
+        .pending { color: #444; font-style: italic; }
 
-        table { width: 100%; border-collapse: collapse; min-width: 600px; /* Forces enough width for data */ }
-        th { background: #222; color: var(--accent); padding: 15px 10px; text-align: left; font-size: 10px; }
-        td { padding: 15px 10px; border-bottom: 1px solid #1a1a1a; font-size: 13px; }
-        tr:nth-child(even) td { background: var(--row-even); }
-        
-        /* Formatting */
-        .time { font-weight: bold; color: #2ecc71; font-family: monospace; }
-        .miss { color: #444; }
-
-        /* Sticky Car # Column for Mobile */
-        th:first-child, td:first-child {
-            position: sticky;
-            left: 0;
-            background: #050505; /* Matches background */
-            z-index: 10;
-            border-right: 2px solid var(--accent);
-            padding-right: 20px;
-        }
-        
-        #loading { text-align: center; color: var(--accent); padding: 20px; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h1>RESULTS HQ</h1>
-        <button class="refresh-btn" onclick="fetchData()">FORCE REFRESH</button>
+        <div class="live-indicator"><div class="dot"></div> LIVE FROM CLOUD</div>
     </div>
 
-    <div class="stats">
-        <div class="stat-card"><span class="s-val" id="masterTime">00:00:00</span><span class="s-lbl">OFFICIAL TIME</span></div>
-        <div class="stat-card"><span class="s-val" id="totalEntries">0</span><span class="s-lbl">CARS LOGGED</span></div>
-    </div>
-
-    <div id="loading">CONNECTING TO MASTER SHEET...</div>
-
-    <div class="table-wrapper">
-        <table style="display:none;" id="results-table">
+    <div class="table-container">
+        <table>
             <thead>
                 <tr>
-                    <th>CAR #</th>
+                    <th style="position:sticky; left:0; background:#111;">CAR #</th>
                     <th>TC 1</th>
                     <th>PC 1</th>
                     <th>TC 2</th>
                     <th>PC 2</th>
-                    <th>TOTAL PEN.</th>
                 </tr>
             </thead>
-            <tbody id="data-body">
+            <tbody id="results-body">
                 </tbody>
         </table>
     </div>
 
-    <p style="font-size: 10px; color: #444; text-align: center; margin-top: 15px;">
-        Updates every 60 seconds. Master Data is Immutable.
-    </p>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    <script>
-        // 1. Core Clock (1Hz)
-        setInterval(() => {
-            document.getElementById('masterTime').textContent = new Date().toTimeString().split(' ')[0];
-        }, 1000);
+        // Your Config from the screenshot
+        const firebaseConfig = {
+            apiKey: "AIzaSyCLi3NMmoJJCeJFGU4d-N4R47D0qM1r8nU",
+            authDomain: "the-regulator-rally.firebaseapp.com",
+            databaseURL: "https://the-regulator-rally-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "the-regulator-rally",
+            storageBucket: "the-regulator-rally.appspot.com",
+            messagingSenderId: "1026958520151",
+            appId: "1:1026958520151:web:166551b9b18361668f447d"
+        };
 
-        // 2. Data Fetching (Every 60s)
-        const publishedSheetUrl = 'YOUR_PUBLISHED_G_SHEET_URL';
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const rallyRef = ref(db, 'Rally_Test');
 
-        function fetchData() {
-            document.getElementById('loading').style.display = 'block';
-            
-            fetch(publishedSheetUrl)
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const rows = doc.querySelectorAll('table.waffle tbody tr');
-                    processData(rows);
-                })
-                .catch(err => {
-                    document.getElementById('loading').textContent = "ERROR CONNECTING TO SHEET.";
-                    console.error(err);
-                });
-        }
+        // LISTEN FOR CHANGES (Real-time)
+        onValue(rallyRef, (snapshot) => {
+            const data = snapshot.val();
+            const tbody = document.getElementById('results-body');
+            tbody.innerHTML = ''; // Clear for fresh render
 
-        // 3. Data Processing & Rendering
-        function processData(rows) {
-            const tbody = document.getElementById('data-body');
-            tbody.innerHTML = ''; // Clear old data
-            let entries = 0;
+            if (!data) return;
 
-            // Start at row 2 to skip headers
-            for (let i = 1; i < rows.length; i++) {
-                const cells = rows[i].querySelectorAll('td');
-                if (cells.length < 6) continue; // Skip bad rows
-
-                const car = cells[0].textContent.trim();
-                const tc1 = cells[1].textContent.trim();
-                const pc1 = cells[2].textContent.trim();
-                const tc2 = cells[3].textContent.trim();
-                const pc2 = cells[4].textContent.trim();
-                const pen = cells[5].textContent.trim();
-
-                if (car === '') continue; // Skip empty rows
-
-                const newRow = `
+            // Loop through each car found in the database
+            Object.keys(data).forEach(carKey => {
+                const carData = data[carKey];
+                const carNum = carKey.replace('Car_', '');
+                
+                const row = `
                     <tr>
-                        <td style="font-weight:bold; color:var(--accent);">${car}</td>
-                        <td class="${tc1 ? 'time' : 'miss'}">${tc1 || '---'}</td>
-                        <td class="${pc1 ? 'time' : 'miss'}">${pc1 || '---'}</td>
-                        <td class="${tc2 ? 'time' : 'miss'}">${tc2 || '---'}</td>
-                        <td class="${pc2 ? 'time' : 'miss'}">${pc2 || '---'}</td>
-                        <td style="font-family:monospace; color:${pen > 0 ? 'var(--danger)' : '#888'}">${pen}</td>
+                        <td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#050505;">${carNum}</td>
+                        <td class="${carData['TC 1'] ? 'time-cell' : 'pending'}">${carData['TC 1'] || '---'}</td>
+                        <td class="${carData['PC 1'] ? 'time-cell' : 'pending'}">${carData['PC 1'] || '---'}</td>
+                        <td class="${carData['TC 2'] ? 'time-cell' : 'pending'}">${carData['TC 2'] || '---'}</td>
+                        <td class="${carData['PC 2'] ? 'time-cell' : 'pending'}">${carData['PC 2'] || '---'}</td>
                     </tr>
                 `;
-                tbody.insertAdjacentHTML('beforeend', newRow);
-                entries++;
-            }
-
-            document.getElementById('totalEntries').textContent = entries;
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('results-table').style.display = 'table';
-        }
-
-        // Initial fetch and auto-refresh
-        fetchData();
-        setInterval(fetchData, 60000); // 60s
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        });
     </script>
 </body>
 </html>
-

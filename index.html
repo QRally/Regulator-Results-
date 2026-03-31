@@ -3,32 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>REGULATOR | WAMC LIVE RESULTS</title>
+    <title>REGULATOR | WAMC SCORING</title>
     <style>
-        :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --safe: #2ecc71; --warn: #e74c3c; --early: #3498db; }
+        :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --safe: #2ecc71; --late: #e74c3c; --early: #3498db; }
         body { font-family: 'Courier New', monospace; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
-        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        h1 { color: var(--accent); margin: 0; font-size: 1.2rem; letter-spacing: 1px; }
-        .live-indicator { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--safe); font-weight: bold; }
-        .dot { width: 8px; height: 8px; background: var(--safe); border-radius: 50%; animation: pulse 1.5s infinite; }
-        .table-container { width: 100%; overflow-x: auto; border: 1px solid #222; border-radius: 4px; }
+        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; }
+        .live-indicator { float: right; font-size: 10px; color: var(--safe); font-weight: bold; }
+        .table-container { width: 100%; overflow-x: auto; border: 1px solid #222; border-radius: 4px; background: #0a0a0a; }
         table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th { background: #111; color: var(--accent); padding: 12px; text-align: left; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #222; }
-        td { padding: 12px; border-bottom: 1px solid #111; font-size: 13px; vertical-align: top; }
-        tr:nth-child(even) { background: #0a0a0a; }
+        th { background: #111; color: var(--accent); padding: 12px; text-align: left; font-size: 10px; border-bottom: 2px solid #222; }
+        td { padding: 12px; border-bottom: 1px solid #111; font-size: 13px; }
         .marks { font-size: 11px; display: block; margin-top: 4px; font-weight: bold; }
-        .late { color: var(--warn); }
-        .early { color: var(--early); }
-        .clean { color: var(--safe); }
-        .total-col { background: #111; font-weight: bold; color: var(--accent); text-align: center; font-size: 1.1rem; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .is-late { color: var(--late); }
+        .is-early { color: var(--early); }
+        .is-clean { color: var(--safe); }
+        .total-box { background: #111; font-weight: bold; color: var(--accent); text-align: center; border-left: 2px solid #222; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1 id="event-title">WAMC RESULTS HQ</h1>
-        <div class="live-indicator"><div class="dot"></div> SCORING ENGINE ACTIVE</div>
+        <div class="live-indicator">● SCORING ENGINE ACTIVE</div>
+        <h1 id="event-title" style="font-size:1.2rem; margin:0; color:var(--accent);">SYNCING...</h1>
+        <div id="master-clock" style="font-size:10px; color:#666; margin-top:5px;">Waiting for route...</div>
     </div>
 
     <div class="table-container">
@@ -36,115 +33,115 @@
             <thead>
                 <tr id="table-header">
                     <th style="position:sticky; left:0; background:#111; z-index:10;">CAR #</th>
-                    <th class="total-col">TOTAL MARKS</th>
+                    <th class="total-box">TOTAL</th>
                 </tr>
             </thead>
-            <tbody id="results-body"></tbody>
+            <tbody id="results-body">
+                <tr><td colspan="2" style="text-align:center; padding:40px; color:#444;">Connecting to Firebase...</td></tr>
+            </tbody>
         </table>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // CONFIG: Set this to your event's actual Start Time for Car 0
-        const MASTER_START_TIME = "20:00:00"; 
-        const CAR_INTERVAL_MINS = 1;
+    // MASTER SETTINGS
+    const MASTER_START = "20:00:00"; 
+    const INTERVAL = 1;
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCLi3NMmoJJCeJFGU4d-N4R47D0qM1r8nU",
-            authDomain: "the-regulator-rally.firebaseapp.com",
-            databaseURL: "https://the-regulator-rally-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "the-regulator-rally",
-            storageBucket: "the-regulator-rally.appspot.com",
-            messagingSenderId: "1026958520151",
-            appId: "1:1026958520151:web:166551b9b18361668f447d"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyCLi3NMmoJJCeJFGU4d-N4R47D0qM1r8nU",
+        authDomain: "the-regulator-rally.firebaseapp.com",
+        databaseURL: "https://the-regulator-rally-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "the-regulator-rally",
+        storageBucket: "the-regulator-rally.appspot.com",
+        messagingSenderId: "1026958520151",
+        appId: "1:1026958520151:web:166551b9b18361668f447d"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        let routeData = null;
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    let route = null;
 
-        async function init() {
-            try {
-                // Fetch route from your GitHub
-                const resp = await fetch('./route.json?t=' + Date.now());
-                routeData = await resp.json();
-                document.getElementById('event-title').textContent = routeData.event_name + " | LIVE";
-                buildHeaders();
-                startListener();
-            } catch (e) {
-                console.error("Failed to load route. Check if route.json exists.");
-            }
-        }
-
-        function buildHeaders() {
-            const headerRow = document.getElementById('table-header');
-            const totalCol = headerRow.querySelector('.total-col');
-            routeData.controls.forEach(c => {
+    async function init() {
+        try {
+            const resp = await fetch('./route.json?t=' + Date.now());
+            if (!resp.ok) throw new Error("File not found");
+            route = await resp.json();
+            
+            document.getElementById('event-title').textContent = route.event_name;
+            document.getElementById('master-clock').textContent = "CAR 0 DEPARTS: " + MASTER_START;
+            
+            // Build Columns
+            const hRow = document.getElementById('table-header');
+            const totalTh = hRow.querySelector('.total-box');
+            route.controls.forEach(c => {
                 const th = document.createElement('th');
-                // Use target_mins (with an 's') to match your JSON
-                th.innerHTML = `${c.id}<br><small style="color:#666">${c.type === 'TIME' ? c.target_mins+'m Sch' : 'Passage'}</small>`;
-                headerRow.insertBefore(th, totalCol);
+                th.innerHTML = `${c.id}<br><small style="color:#666">${c.target_mins ? c.target_mins+'m' : 'PC'}</small>`;
+                hRow.insertBefore(th, totalTh);
             });
+
+            startListening();
+        } catch (e) {
+            document.getElementById('event-title').textContent = "ROUTE ERROR";
+            document.getElementById('master-clock').textContent = "Check if route.json is in your GitHub repo.";
         }
+    }
 
-        function calculateWAMC(actual, carNum, targetMins, type) {
-            if (!actual) return { score: 0, html: '<span style="color:#444">---</span>' };
-            if (type === 'PASSAGE') return { score: 0, html: '<span class="clean">VISITED</span>' };
+    function calculateMarks(actualTimeStr, carNum, targetMins, type) {
+        if (!actualTimeStr) return { marks: 0, html: '<span style="color:#333">---</span>' };
+        if (type === "PASSAGE") return { marks: 0, html: '<span style="color:var(--safe)">OK</span>' };
 
-            // 1. Calculate the DUE TIME for this specific car
-            const [h, m, s] = MASTER_START_TIME.split(':').map(Number);
-            const carOffset = parseInt(carNum) * CAR_INTERVAL_MINS;
-            const due = new Date(2026, 0, 1, h, m + carOffset + (targetMins || 0), s);
+        const [h, m, s] = MASTER_START.split(':').map(Number);
+        const carStartOffset = parseInt(carNum) * INTERVAL;
+        const due = new Date(2026, 3, 1, h, m + carStartOffset + (targetMins || 0), s);
+        
+        const [ah, am, as] = actualTimeStr.split(':').map(Number);
+        const actual = new Date(2026, 3, 1, ah, am, as);
 
-            // 2. Parse the ACTUAL time from Firebase
-            const [ah, am, as] = actual.split(':').map(Number);
-            const act = new Date(2026, 0, 1, ah, am, as);
+        const diffSeconds = (actual - due) / 1000;
+        const diffMins = Math.floor(Math.abs(diffSeconds) / 60);
 
-            const diffSeconds = (act - due) / 1000;
-            const diffMins = Math.floor(Math.abs(diffSeconds) / 60);
+        if (diffSeconds > 30) { 
+            return { marks: diffMins, html: `${actualTimeStr}<span class="marks is-late">${diffMins}L</span>` };
+        } else if (diffSeconds < -30) {
+            return { marks: diffMins * 2, html: `${actualTimeStr}<span class="marks is-early">${diffMins * 2}E</span>` };
+        }
+        return { marks: 0, html: `${actualTimeStr}<span class="marks is-clean">0M</span>` };
+    }
 
-            if (diffSeconds > 30) { // LATE: 1 mark per minute
-                return { score: diffMins, html: `<span class="late">${actual}</span><span class="marks late">${diffMins}L</span>` };
-            } else if (diffSeconds < -30) { // EARLY: 2 marks per minute
-                const marks = diffMins * 2;
-                return { score: marks, html: `<span class="early">${actual}</span><span class="marks early">${marks}E</span>` };
+    function startListening() {
+        onValue(ref(db, 'Rally_Test'), (snap) => {
+            const data = snap.val();
+            const tbody = document.getElementById('results-body');
+            tbody.innerHTML = '';
+            if (!data) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:#444;">No data in Firebase "Rally_Test"</td></tr>';
+                return;
             }
 
-            return { score: 0, html: `<span class="clean">${actual}</span><span class="marks clean">0M</span>` };
-        }
+            Object.keys(data).sort((a,b) => parseInt(a.replace('Car_','')) - parseInt(b.replace('Car_',''))).forEach(carKey => {
+                const carData = data[carKey];
+                const carNum = carKey.replace('Car_', '');
+                let rowTotal = 0;
+                let rowHtml = `<td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#0a0a0a;">${carNum}</td>`;
 
-        function startListener() {
-            onValue(ref(db, 'Rally_Test'), (snapshot) => {
-                const firebaseData = snapshot.val();
-                const tbody = document.getElementById('results-body');
-                tbody.innerHTML = '';
-                if (!firebaseData) return;
-
-                // Sort cars numerically
-                Object.keys(firebaseData).sort((a,b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1])).forEach(carKey => {
-                    const carTimes = firebaseData[carKey];
-                    const carNum = carKey.replace('Car_', '');
-                    let totalMarks = 0;
-                    let rowHtml = `<td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#050505;">${carNum}</td>`;
-
-                    routeData.controls.forEach(ctrl => {
-                        const actual = carTimes[ctrl.id];
-                        const result = calculateWAMC(actual, carNum, ctrl.target_mins, ctrl.type);
-                        totalMarks += result.score;
-                        rowHtml += `<td>${result.html}</td>`;
-                    });
-
-                    rowHtml += `<td class="total-col">${totalMarks}</td>`;
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = rowHtml;
-                    tbody.appendChild(tr);
+                route.controls.forEach(c => {
+                    const result = calculateMarks(carData[c.id], carNum, c.target_mins, c.type);
+                    rowTotal += result.marks;
+                    rowHtml += `<td>${result.html}</td>`;
                 });
-            });
-        }
 
-        init();
-    </script>
+                rowHtml += `<td class="total-box">${rowTotal}</td>`;
+                const tr = document.createElement('tr');
+                tr.innerHTML = rowHtml;
+                tbody.appendChild(tr);
+            });
+        });
+    }
+
+    init();
+</script>
 </body>
 </html>

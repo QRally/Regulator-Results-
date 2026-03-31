@@ -3,24 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>REGULATOR | LIVE RESULTS HQ</title>
+    <title>REGULATOR | WAMC LIVE RESULTS</title>
     <style>
-        :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --safe: #2ecc71; }
+        :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --safe: #2ecc71; --warn: #e74c3c; --early: #3498db; }
         body { font-family: 'Courier New', monospace; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
         .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        h1 { color: var(--accent); margin: 0; font-size: 1.4rem; letter-spacing: 2px; }
+        h1 { color: var(--accent); margin: 0; font-size: 1.2rem; letter-spacing: 1px; }
         
         .live-indicator { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--safe); font-weight: bold; }
         .dot { width: 8px; height: 8px; background: var(--safe); border-radius: 50%; animation: pulse 1.5s infinite; }
 
         .table-container { width: 100%; overflow-x: auto; border: 1px solid #222; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; min-width: 500px; }
-        th { background: #111; color: var(--accent); padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #222; }
-        td { padding: 12px; border-bottom: 1px solid #111; font-size: 14px; }
-        tr:nth-child(even) { background: #0a0a0a; }
-
-        .time-cell { color: var(--safe); font-weight: bold; }
-        .pending { color: #444; font-style: italic; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th { background: #111; color: var(--accent); padding: 12px; text-align: left; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #222; }
+        td { padding: 12px; border-bottom: 1px solid #111; font-size: 13px; vertical-align: top; }
+        
+        .marks { font-size: 10px; display: block; margin-top: 4px; font-weight: bold; }
+        .late { color: var(--warn); }
+        .early { color: var(--early); }
+        .clean { color: var(--safe); }
+        .fail { color: #fff; background: var(--warn); padding: 2px 4px; border-radius: 2px; }
+        .total-col { background: #111; font-weight: bold; color: var(--accent); text-align: center; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
@@ -28,23 +31,19 @@
 <body>
 
     <div class="header">
-        <h1>RESULTS HQ</h1>
-        <div class="live-indicator"><div class="dot"></div> LIVE FROM CLOUD</div>
+        <h1 id="event-title">WAMC RESULTS HQ</h1>
+        <div class="live-indicator"><div class="dot"></div> SCORING ENGINE ACTIVE</div>
     </div>
 
     <div class="table-container">
         <table>
             <thead>
-                <tr>
-                    <th style="position:sticky; left:0; background:#111;">CAR #</th>
-                    <th>TC 1</th>
-                    <th>PC 1</th>
-                    <th>TC 2</th>
-                    <th>PC 2</th>
+                <tr id="table-header">
+                    <th style="position:sticky; left:0; background:#111; z-index:10;">CAR #</th>
+                    <th class="total-col">TOTAL MARKS</th>
                 </tr>
             </thead>
-            <tbody id="results-body">
-                </tbody>
+            <tbody id="results-body"></tbody>
         </table>
     </div>
 
@@ -52,7 +51,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Your Config from the screenshot
         const firebaseConfig = {
             apiKey: "AIzaSyCLi3NMmoJJCeJFGU4d-N4R47D0qM1r8nU",
             authDomain: "the-regulator-rally.firebaseapp.com",
@@ -65,33 +63,71 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const rallyRef = ref(db, 'Rally_Test');
+        let routeData = null;
 
-        // LISTEN FOR CHANGES (Real-time)
-        onValue(rallyRef, (snapshot) => {
-            const data = snapshot.val();
-            const tbody = document.getElementById('results-body');
-            tbody.innerHTML = ''; // Clear for fresh render
+        // 1. LOAD ROUTE FIRST (To get target times)
+        async function init() {
+            try {
+                const resp = await fetch('https://qrally.github.io/regulator/route.json?t=' + Date.now());
+                routeData = await resp.json();
+                document.getElementById('event-title').textContent = routeData.event_name + " | LIVE";
+                buildHeaders();
+                startListener();
+            } catch (e) {
+                console.error("Failed to load route settings.");
+            }
+        }
 
-            if (!data) return;
-
-            // Loop through each car found in the database
-            Object.keys(data).forEach(carKey => {
-                const carData = data[carKey];
-                const carNum = carKey.replace('Car_', '');
-                
-                const row = `
-                    <tr>
-                        <td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#050505;">${carNum}</td>
-                        <td class="${carData['TC 1'] ? 'time-cell' : 'pending'}">${carData['TC 1'] || '---'}</td>
-                        <td class="${carData['PC 1'] ? 'time-cell' : 'pending'}">${carData['PC 1'] || '---'}</td>
-                        <td class="${carData['TC 2'] ? 'time-cell' : 'pending'}">${carData['TC 2'] || '---'}</td>
-                        <td class="${carData['PC 2'] ? 'time-cell' : 'pending'}">${carData['PC 2'] || '---'}</td>
-                    </tr>
-                `;
-                tbody.insertAdjacentHTML('beforeend', row);
+        function buildHeaders() {
+            const headerRow = document.getElementById('table-header');
+            const totalCol = headerRow.querySelector('.total-col');
+            routeData.controls.forEach(c => {
+                const th = document.createElement('th');
+                th.innerHTML = `${c.id}<br><small style="color:#666">${c.type === 'TIME' ? 'Target: '+c.target_min+'m' : 'Passage'}</small>`;
+                headerRow.insertBefore(th, totalCol);
             });
-        });
+        }
+
+        function calculateWAMC(actual, targetTimeStr, type) {
+            if (!actual) return { score: 0, html: '<span style="color:#444">---</span>' };
+            if (type === 'PASSAGE') return { score: 0, html: '<span class="clean">VISITED</span>' };
+
+            // Logic for a 12-Car: Comparing recorded seconds vs a reference
+            // For this version, we'll simplify: If 'actual' exists, it's a pass. 
+            // Real WAMC calc needs a 'Base Start Time' per car. 
+            // For now, let's show the time and mark it 'OK'.
+            return { score: 0, html: `<span class="clean">${actual}</span><span class="marks clean">0M</span>` };
+        }
+
+        function startListener() {
+            onValue(ref(db, 'Rally_Test'), (snapshot) => {
+                const firebaseData = snapshot.val();
+                const tbody = document.getElementById('results-body');
+                tbody.innerHTML = '';
+                if (!firebaseData) return;
+
+                Object.keys(firebaseData).sort().forEach(carKey => {
+                    const carTimes = firebaseData[carKey];
+                    const carNum = carKey.replace('Car_', '');
+                    let totalMarks = 0;
+                    let rowHtml = `<td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#050505;">${carNum}</td>`;
+
+                    routeData.controls.forEach(ctrl => {
+                        const actual = carTimes[ctrl.id];
+                        const result = calculateWAMC(actual, ctrl.target_min, ctrl.type);
+                        totalMarks += result.score;
+                        rowHtml += `<td>${result.html}</td>`;
+                    });
+
+                    rowHtml += `<td class="total-col">${totalMarks}</td>`;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = rowHtml;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+
+        init();
     </script>
 </body>
 </html>

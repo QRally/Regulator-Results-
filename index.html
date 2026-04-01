@@ -17,7 +17,7 @@
         .is-late { color: var(--late); }
         .is-early { color: var(--early); }
         .is-clean { color: var(--safe); }
-        .total-box { background: #111; font-weight: bold; color: var(--accent); text-align: center; border-left: 2px solid #222; }
+        .total-box { background: #111; font-weight: bold; color: var(--accent); text-align: center; border-left: 2px solid #222; font-size: 1.1rem; }
     </style>
 </head>
 <body>
@@ -25,7 +25,7 @@
     <div class="header">
         <div class="live-indicator">● SCORING ENGINE ACTIVE</div>
         <h1 id="event-title" style="font-size:1.2rem; margin:0; color:var(--accent);">SYNCING...</h1>
-        <div id="master-clock" style="font-size:10px; color:#666; margin-top:5px;">Waiting for route...</div>
+        <div id="master-clock" style="font-size:10px; color:#666; margin-top:5px;">Connecting...</div>
     </div>
 
     <div class="table-container">
@@ -46,9 +46,9 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // MASTER SETTINGS
+    // --- NIGHT SETTINGS ---
     const MASTER_START = "14:00:00"; 
-    const INTERVAL = 1;
+    const INTERVAL = 1; // Minutes between cars
 
     const firebaseConfig = {
         apiKey: "AIzaSyCLi3NMmoJJCeJFGU4d-N4R47D0qM1r8nU",
@@ -64,31 +64,22 @@
     const db = getDatabase(app);
     let route = null;
 
-        async function init() {
-        // Try these two common GitHub Pages paths
-        const paths = [
-            './route.json',
-            'https://qrally.github.io/regulator/route.json'
-        ];
-        
+    async function init() {
+        const paths = ['./route.json', 'https://qrally.github.io/regulator/route.json'];
         let success = false;
 
         for (let path of paths) {
             try {
-                console.log("Checking path:", path);
                 const resp = await fetch(path + '?t=' + Date.now());
                 if (resp.ok) {
                     route = await resp.json();
                     success = true;
                     break; 
                 }
-            } catch (e) {
-                console.log("Path failed:", path);
-            }
+            } catch (e) { console.log("Try next path..."); }
         }
 
         if (success) {
-            // Populate the Dashboard
             document.getElementById('event-title').textContent = route.event_name;
             document.getElementById('master-clock').textContent = "CAR 0 DEPARTS: " + MASTER_START;
             
@@ -102,17 +93,16 @@
             startListening();
         } else {
             document.getElementById('event-title').textContent = "ROUTE NOT FOUND";
-            document.getElementById('master-clock').textContent = "Check GitHub Pages settings for 'regulator' repo.";
         }
     }
-
 
     function calculateMarks(actualTimeStr, carNum, targetMins, type) {
         if (!actualTimeStr) return { marks: 0, html: '<span style="color:#333">---</span>' };
         if (type === "PASSAGE") return { marks: 0, html: '<span style="color:var(--safe)">OK</span>' };
 
+        // WAMC Math
         const [h, m, s] = MASTER_START.split(':').map(Number);
-        const carStartOffset = parseInt(carNum) * INTERVAL;
+        const carStartOffset = (parseInt(carNum) || 0) * INTERVAL;
         const due = new Date(2026, 3, 1, h, m + carStartOffset + (targetMins || 0), s);
         
         const [ah, am, as] = actualTimeStr.split(':').map(Number);
@@ -121,9 +111,9 @@
         const diffSeconds = (actual - due) / 1000;
         const diffMins = Math.floor(Math.abs(diffSeconds) / 60);
 
-        if (diffSeconds > 30) { 
+        if (diffSeconds > 30) { // LATE
             return { marks: diffMins, html: `${actualTimeStr}<span class="marks is-late">${diffMins}L</span>` };
-        } else if (diffSeconds < -30) {
+        } else if (diffSeconds < -30) { // EARLY
             return { marks: diffMins * 2, html: `${actualTimeStr}<span class="marks is-early">${diffMins * 2}E</span>` };
         }
         return { marks: 0, html: `${actualTimeStr}<span class="marks is-clean">0M</span>` };
@@ -135,18 +125,23 @@
             const tbody = document.getElementById('results-body');
             tbody.innerHTML = '';
             if (!data) {
-                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:#444;">No data in Firebase "Rally_Test"</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:#444;">No data in Firebase</td></tr>';
                 return;
             }
 
-            Object.keys(data).sort((a,b) => parseInt(a.replace('Car_','')) - parseInt(b.replace('Car_',''))).forEach(carKey => {
+            // Numerical Sort for Car IDs
+            Object.keys(data).sort((a, b) => {
+                const nA = parseInt(a.replace(/\D/g, '')) || 999;
+                const nB = parseInt(b.replace(/\D/g, '')) || 999;
+                return nA - nB;
+            }).forEach(carKey => {
                 const carData = data[carKey];
-                const carNum = carKey.replace('Car_', '');
+                const carDisplay = carKey.replace('Car_', '');
                 let rowTotal = 0;
-                let rowHtml = `<td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#0a0a0a;">${carNum}</td>`;
+                let rowHtml = `<td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#0a0a0a;">${carDisplay}</td>`;
 
                 route.controls.forEach(c => {
-                    const result = calculateMarks(carData[c.id], carNum, c.target_mins, c.type);
+                    const result = calculateMarks(carData[c.id], carDisplay, c.target_mins, c.type);
                     rowTotal += result.marks;
                     rowHtml += `<td>${result.html}</td>`;
                 });

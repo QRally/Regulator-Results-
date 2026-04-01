@@ -64,30 +64,48 @@
     const db = getDatabase(app);
     let route = null;
 
-    async function init() {
-        try {
-            const resp = await fetch('./route.json?t=' + Date.now());
-            if (!resp.ok) throw new Error("File not found");
-            route = await resp.json();
-            
+        async function init() {
+        // Try these two common GitHub Pages paths
+        const paths = [
+            './route.json',
+            'https://qrally.github.io/regulator/route.json'
+        ];
+        
+        let success = false;
+
+        for (let path of paths) {
+            try {
+                console.log("Checking path:", path);
+                const resp = await fetch(path + '?t=' + Date.now());
+                if (resp.ok) {
+                    route = await resp.json();
+                    success = true;
+                    break; 
+                }
+            } catch (e) {
+                console.log("Path failed:", path);
+            }
+        }
+
+        if (success) {
+            // Populate the Dashboard
             document.getElementById('event-title').textContent = route.event_name;
             document.getElementById('master-clock').textContent = "CAR 0 DEPARTS: " + MASTER_START;
             
-            // Build Columns
             const hRow = document.getElementById('table-header');
             const totalTh = hRow.querySelector('.total-box');
             route.controls.forEach(c => {
                 const th = document.createElement('th');
-                th.innerHTML = `${c.id}<br><small style="color:#666">${c.target_mins ? c.target_mins+'m' : 'PC'}</small>`;
+                th.innerHTML = `${c.id}<br><small style="color:#666">${c.type === 'TIME' ? c.target_mins+'m Sch' : 'Passage'}</small>`;
                 hRow.insertBefore(th, totalTh);
             });
-
             startListening();
-        } catch (e) {
-            document.getElementById('event-title').textContent = "ROUTE ERROR";
-            document.getElementById('master-clock').textContent = "Check if route.json is in your GitHub repo.";
+        } else {
+            document.getElementById('event-title').textContent = "ROUTE NOT FOUND";
+            document.getElementById('master-clock').textContent = "Check GitHub Pages settings for 'regulator' repo.";
         }
     }
+
 
     function calculateMarks(actualTimeStr, carNum, targetMins, type) {
         if (!actualTimeStr) return { marks: 0, html: '<span style="color:#333">---</span>' };

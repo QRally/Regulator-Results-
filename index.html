@@ -3,41 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>REGULATOR | WAMC SCORING</title>
+    <title>GEOSTAMPED | LIVE RESULTS</title>
     <style>
-        :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --safe: #2ecc71; --late: #e74c3c; --early: #3498db; }
+        :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --safe: #2ecc71; --empty: #333; }
         body { font-family: 'Courier New', monospace; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
-        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; }
-        .live-indicator { float: right; font-size: 10px; color: var(--safe); font-weight: bold; }
+        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .live-indicator { font-size: 10px; color: var(--safe); font-weight: bold; animation: blink 2s infinite; }
         .table-container { width: 100%; overflow-x: auto; border: 1px solid #222; border-radius: 4px; background: #0a0a0a; }
         table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th { background: #111; color: var(--accent); padding: 12px; text-align: left; font-size: 10px; border-bottom: 2px solid #222; }
+        th { background: #111; color: var(--accent); padding: 12px; text-align: left; font-size: 10px; border-bottom: 2px solid #222; text-transform: uppercase; }
         td { padding: 12px; border-bottom: 1px solid #111; font-size: 13px; }
-        .marks { font-size: 11px; display: block; margin-top: 4px; font-weight: bold; }
-        .is-late { color: var(--late); }
-        .is-early { color: var(--early); }
-        .is-clean { color: var(--safe); }
-        .total-box { background: #111; font-weight: bold; color: var(--accent); text-align: center; border-left: 2px solid #222; font-size: 1.1rem; }
+        .stamp-time { color: var(--safe); font-weight: bold; }
+        .stamp-missing { color: var(--empty); }
+        .total-count { background: #111; font-weight: bold; color: var(--accent); text-align: center; border-left: 2px solid #222; }
+        @keyframes blink { 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <div class="live-indicator">● SCORING ENGINE ACTIVE</div>
-        <h1 id="event-title" style="font-size:1.2rem; margin:0; color:var(--accent);">SYNCING...</h1>
-        <div id="master-clock" style="font-size:10px; color:#666; margin-top:5px;">Connecting...</div>
+        <div>
+            <h1 id="event-title" style="font-size:1.2rem; margin:0; color:var(--accent);">SYNCING ROUTE...</h1>
+            <div id="status-text" style="font-size:10px; color:#666; margin-top:5px;">Initializing Geoscatter Engine...</div>
+        </div>
+        <div class="live-indicator">● LIVE FROM FIELD</div>
     </div>
 
     <div class="table-container">
         <table>
             <thead>
                 <tr id="table-header">
-                    <th style="position:sticky; left:0; background:#111; z-index:10;">CAR #</th>
-                    <th class="total-box">TOTAL</th>
+                    <th style="position:sticky; left:0; background:#111; z-index:10;">CAR</th>
+                    <th class="total-count">VISITS</th>
                 </tr>
             </thead>
             <tbody id="results-body">
-                <tr><td colspan="2" style="text-align:center; padding:40px; color:#444;">Connecting to Firebase...</td></tr>
+                <tr><td colspan="2" style="text-align:center; padding:40px; color:#444;">Awaiting Signal...</td></tr>
             </tbody>
         </table>
     </div>
@@ -45,10 +46,6 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-    // --- NIGHT SETTINGS ---
-    const MASTER_START = "14:00:00"; 
-    const INTERVAL = 1; // Minutes between cars
 
     const firebaseConfig = {
         apiKey: "AIzaSyCLi3NMmoJJCeJFGU4d-N4R47D0qM1r8nU",
@@ -60,101 +57,82 @@
         appId: "1:1026958520151:web:166551b9b18361668f447d"
     };
 
+    // This must match the INTERNAL_ROUTE in your tracker app
+    const ROUTE_CONFIG = {
+        "event_name": "LLANDOVERY TEST v5.1",
+        "controls": [
+            { "id": "START (Castle)", "type": "START" },
+            { "id": "PC 1", "type": "PC" },
+            { "id": "Scatter 1", "type": "SCATTER" },
+            { "id": "FINISH", "type": "FINISH" }
+        ]
+    };
+
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    let route = null;
 
-    async function init() {
-        const paths = ['./route.json', 'https://qrally.github.io/regulator/route.json'];
-        let success = false;
-
-        for (let path of paths) {
-            try {
-                const resp = await fetch(path + '?t=' + Date.now());
-                if (resp.ok) {
-                    route = await resp.json();
-                    success = true;
-                    break; 
-                }
-            } catch (e) { console.log("Try next path..."); }
-        }
-
-        if (success) {
-            document.getElementById('event-title').textContent = route.event_name;
-            document.getElementById('master-clock').textContent = "CAR 0 DEPARTS: " + MASTER_START;
-            
-            const hRow = document.getElementById('table-header');
-            const totalTh = hRow.querySelector('.total-box');
-            route.controls.forEach(c => {
-                const th = document.createElement('th');
-                th.innerHTML = `${c.id}<br><small style="color:#666">${c.type === 'TIME' ? c.target_mins+'m Sch' : 'Passage'}</small>`;
-                hRow.insertBefore(th, totalTh);
-            });
-            startListening();
-        } else {
-            document.getElementById('event-title').textContent = "ROUTE NOT FOUND";
-        }
-    }
-
-    function calculateMarks(actualTimeStr, carNum, targetMins, type) {
-        if (!actualTimeStr) return { marks: 0, html: '<span style="color:#333">---</span>' };
-        if (type === "PASSAGE") return { marks: 0, html: '<span style="color:var(--safe)">OK</span>' };
-
-        // WAMC Math
-        const [h, m, s] = MASTER_START.split(':').map(Number);
-        const carStartOffset = (parseInt(carNum) || 0) * INTERVAL;
-        const due = new Date(2026, 3, 1, h, m + carStartOffset + (targetMins || 0), s);
+    function initTable() {
+        document.getElementById('event-title').textContent = ROUTE_CONFIG.event_name;
+        const hRow = document.getElementById('table-header');
+        const totalTh = hRow.querySelector('.total-count');
         
-        const [ah, am, as] = actualTimeStr.split(':').map(Number);
-        const actual = new Date(2026, 3, 1, ah, am, as);
-
-        const diffSeconds = (actual - due) / 1000;
-        const diffMins = Math.floor(Math.abs(diffSeconds) / 60);
-
-        if (diffSeconds > 30) { // LATE
-            return { marks: diffMins, html: `${actualTimeStr}<span class="marks is-late">${diffMins}L</span>` };
-        } else if (diffSeconds < -30) { // EARLY
-            return { marks: diffMins * 2, html: `${actualTimeStr}<span class="marks is-early">${diffMins * 2}E</span>` };
-        }
-        return { marks: 0, html: `${actualTimeStr}<span class="marks is-clean">0M</span>` };
+        ROUTE_CONFIG.controls.forEach(c => {
+            const th = document.createElement('th');
+            th.innerHTML = `${c.id}<br><small style="color:#666">${c.type}</small>`;
+            hRow.insertBefore(th, totalTh);
+        });
+        
+        startListening();
     }
 
     function startListening() {
-        onValue(ref(db, 'Rally_Test'), (snap) => {
+        // Listening to the new "GEOSCATTER" node
+        onValue(ref(db, 'GEOSCATTER'), (snap) => {
             const data = snap.val();
             const tbody = document.getElementById('results-body');
             tbody.innerHTML = '';
+
             if (!data) {
-                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:#444;">No data in Firebase</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="20" style="text-align:center; padding:40px; color:#444;">NO DATA RECEIVED YET</td></tr>';
                 return;
             }
 
-            // Numerical Sort for Car IDs
-            Object.keys(data).sort((a, b) => {
-                const nA = parseInt(a.replace(/\D/g, '')) || 999;
-                const nB = parseInt(b.replace(/\D/g, '')) || 999;
+            // Sort cars numerically
+            const sortedCars = Object.keys(data).sort((a, b) => {
+                const nA = parseInt(a.replace(/\D/g, '')) || 0;
+                const nB = parseInt(b.replace(/\D/g, '')) || 0;
                 return nA - nB;
-            }).forEach(carKey => {
+            });
+
+            sortedCars.forEach(carKey => {
                 const carData = data[carKey];
                 const carDisplay = carKey.replace('Car_', '');
-                let rowTotal = 0;
-                let rowHtml = `<td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#0a0a0a;">${carDisplay}</td>`;
+                let visitCount = 0;
+                
+                let rowHtml = `<td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#0a0a0a; border-right:1px solid #222;">${carDisplay}</td>`;
 
-                route.controls.forEach(c => {
-                    const result = calculateMarks(carData[c.id], carDisplay, c.target_mins, c.type);
-                    rowTotal += result.marks;
-                    rowHtml += `<td>${result.html}</td>`;
+                ROUTE_CONFIG.controls.forEach(control => {
+                    const record = carData[control.id]; // Access by Control ID
+                    if (record && record.time) {
+                        visitCount++;
+                        rowHtml += `<td><span class="stamp-time">${record.time}</span><br><small style="font-size:9px; color:#555">${record.miles}m</small></td>`;
+                    } else {
+                        rowHtml += `<td><span class="stamp-missing">---</span></td>`;
+                    }
                 });
 
-                rowHtml += `<td class="total-box">${rowTotal}</td>`;
+                rowHtml += `<td class="total-count">${visitCount} / ${ROUTE_CONFIG.controls.length}</td>`;
+                
                 const tr = document.createElement('tr');
                 tr.innerHTML = rowHtml;
                 tbody.appendChild(tr);
             });
+
+            document.getElementById('status-text').textContent = `LAST UPDATE: ${new Date().toLocaleTimeString()}`;
         });
     }
 
-    init();
+    initTable();
 </script>
 </body>
 </html>

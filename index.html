@@ -3,19 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEOSTAMPED | LIVE RESULTS</title>
+    <title>GEOSTAMPED | LIVE RESULTS v5.2</title>
     <style>
         :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --safe: #2ecc71; --empty: #333; }
-        body { font-family: 'Courier New', monospace; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
+        body { font-family: monospace; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
+        
         .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
         .live-indicator { font-size: 10px; color: var(--safe); font-weight: bold; animation: blink 2s infinite; }
+        
+        /* Container for horizontal scrolling on mobile */
         .table-container { width: 100%; overflow-x: auto; border: 1px solid #222; border-radius: 4px; background: #0a0a0a; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th { background: #111; color: var(--accent); padding: 12px; text-align: left; font-size: 10px; border-bottom: 2px solid #222; text-transform: uppercase; }
-        td { padding: 12px; border-bottom: 1px solid #111; font-size: 13px; }
+        
+        table { width: 100%; border-collapse: collapse; min-width: 900px; } /* Increased min-width for more controls */
+        
+        /* Sticky Headers */
+        th { 
+            background: #111; color: var(--accent); padding: 12px; 
+            text-align: left; font-size: 10px; border-bottom: 2px solid #222; 
+            text-transform: uppercase; position: sticky; top: 0; z-index: 5;
+        }
+
+        td { padding: 12px; border-bottom: 1px solid #111; font-size: 13px; white-space: nowrap; }
+        
+        /* Sticky Car Column */
+        .sticky-col { position: sticky; left: 0; background: #0a0a0a; z-index: 10; border-right: 1px solid #222; font-weight: bold; color: var(--accent); }
+
         .stamp-time { color: var(--safe); font-weight: bold; }
         .stamp-missing { color: var(--empty); }
+        
         .total-count { background: #111; font-weight: bold; color: var(--accent); text-align: center; border-left: 2px solid #222; }
+        
         @keyframes blink { 50% { opacity: 0.5; } }
     </style>
 </head>
@@ -24,21 +41,21 @@
     <div class="header">
         <div>
             <h1 id="event-title" style="font-size:1.2rem; margin:0; color:var(--accent);">SYNCING ROUTE...</h1>
-            <div id="status-text" style="font-size:10px; color:#666; margin-top:5px;">Initializing Geoscatter Engine...</div>
+            <div id="status-text" style="font-size:10px; color:#666; margin-top:5px;">Connecting to GEOSCATTER Engine...</div>
         </div>
-        <div class="live-indicator">● LIVE FROM FIELD</div>
+        <div class="live-indicator">● LIVE RESULTS</div>
     </div>
 
     <div class="table-container">
         <table>
             <thead>
                 <tr id="table-header">
-                    <th style="position:sticky; left:0; background:#111; z-index:10;">CAR</th>
+                    <th class="sticky-col">CAR</th>
                     <th class="total-count">VISITS</th>
                 </tr>
             </thead>
             <tbody id="results-body">
-                <tr><td colspan="2" style="text-align:center; padding:40px; color:#444;">Awaiting Signal...</td></tr>
+                <tr><td colspan="13" style="text-align:center; padding:40px; color:#444;">Awaiting Signal...</td></tr>
             </tbody>
         </table>
     </div>
@@ -57,13 +74,20 @@
         appId: "1:1026958520151:web:166551b9b18361668f447d"
     };
 
-    // This must match the INTERNAL_ROUTE in your tracker app
+    // EXACT MATCH to INTERNAL_ROUTE in tracker app v5.2
     const ROUTE_CONFIG = {
-        "event_name": "GEOSTAMP v5.1",
+        "event_name": "GEOSTAMP v5.2",
         "controls": [
-            { "id": "START (Home)", "type": "START" },
-            { "id": "PC 1", "type": "PC" },
+            { "id": "START", "type": "START" },
             { "id": "Scatter 1", "type": "SCATTER" },
+            { "id": "PC 1", "type": "PC" },
+            { "id": "Scatter 3", "type": "SCATTER" },
+            { "id": "Scatter 4", "type": "SCATTER" },
+            { "id": "Scatter 5", "type": "SCATTER" },
+            { "id": "Scatter 6", "type": "SCATTER" },
+            { "id": "Scatter 7", "type": "SCATTER" },
+            { "id": "Scatter 8", "type": "SCATTER" },
+            { "id": "Scatter 9", "type": "SCATTER" },
             { "id": "FINISH", "type": "FINISH" }
         ]
     };
@@ -76,9 +100,13 @@
         const hRow = document.getElementById('table-header');
         const totalTh = hRow.querySelector('.total-count');
         
+        // Clear existing dynamic headers if any
+        const existingThs = hRow.querySelectorAll('th:not(.sticky-col):not(.total-count)');
+        existingThs.forEach(th => th.remove());
+
         ROUTE_CONFIG.controls.forEach(c => {
             const th = document.createElement('th');
-            th.innerHTML = `${c.id}<br><small style="color:#666">${c.type}</small>`;
+            th.innerHTML = `${c.id}<br><small style="color:#666; font-weight:normal;">${c.type}</small>`;
             hRow.insertBefore(th, totalTh);
         });
         
@@ -86,36 +114,35 @@
     }
 
     function startListening() {
-        // Listening to the new "GEOSCATTER" node
         onValue(ref(db, 'GEOSCATTER'), (snap) => {
             const data = snap.val();
             const tbody = document.getElementById('results-body');
             tbody.innerHTML = '';
 
             if (!data) {
-                tbody.innerHTML = '<tr><td colspan="20" style="text-align:center; padding:40px; color:#444;">NO DATA RECEIVED YET</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="${ROUTE_CONFIG.controls.length + 2}" style="text-align:center; padding:40px; color:#444;">NO DATA RECEIVED YET</td></tr>`;
                 return;
             }
 
-            // Sort cars numerically
+            // Sort cars numerically (Car_1, Car_2, Car_10...)
             const sortedCars = Object.keys(data).sort((a, b) => {
-                const nA = parseInt(a.replace(/\D/g, '')) || 0;
-                const nB = parseInt(b.replace(/\D/g, '')) || 0;
+                const nA = parseInt(a.replace('Car_', '')) || 0;
+                const nB = parseInt(b.replace('Car_', '')) || 0;
                 return nA - nB;
             });
 
             sortedCars.forEach(carKey => {
                 const carData = data[carKey];
-                const carDisplay = carKey.replace('Car_', '');
+                const carNumber = carKey.replace('Car_', '');
                 let visitCount = 0;
                 
-                let rowHtml = `<td style="font-weight:bold; color:var(--accent); position:sticky; left:0; background:#0a0a0a; border-right:1px solid #222;">${carDisplay}</td>`;
+                let rowHtml = `<td class="sticky-col">${carNumber}</td>`;
 
                 ROUTE_CONFIG.controls.forEach(control => {
-                    const record = carData[control.id]; // Access by Control ID
+                    const record = carData[control.id]; 
                     if (record && record.time) {
                         visitCount++;
-                        rowHtml += `<td><span class="stamp-time">${record.time}</span><br><small style="font-size:9px; color:#555">${record.miles}m</small></td>`;
+                        rowHtml += `<td><span class="stamp-time">${record.time}</span><br><small style="font-size:9px; color:#555">${record.miles} mi</small></td>`;
                     } else {
                         rowHtml += `<td><span class="stamp-missing">---</span></td>`;
                     }
@@ -128,7 +155,7 @@
                 tbody.appendChild(tr);
             });
 
-            document.getElementById('status-text').textContent = `LAST UPDATE: ${new Date().toLocaleTimeString()}`;
+            document.getElementById('status-text').textContent = `SYNCED: ${new Date().toLocaleTimeString()}`;
         });
     }
 

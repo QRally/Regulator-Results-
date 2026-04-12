@@ -1,4 +1,4 @@
-we<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -11,12 +11,10 @@ we<!DOCTYPE html>
         .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
         .live-indicator { font-size: 10px; color: var(--safe); font-weight: bold; animation: blink 2s infinite; }
         
-        /* Container for horizontal scrolling on mobile */
         .table-container { width: 100%; overflow-x: auto; border: 1px solid #222; border-radius: 4px; background: #0a0a0a; }
         
-        table { width: 100%; border-collapse: collapse; min-width: 900px; } /* Increased min-width for more controls */
+        table { width: 100%; border-collapse: collapse; min-width: 900px; } 
         
-        /* Sticky Headers */
         th { 
             background: #111; color: var(--accent); padding: 12px; 
             text-align: left; font-size: 10px; border-bottom: 2px solid #222; 
@@ -25,7 +23,6 @@ we<!DOCTYPE html>
 
         td { padding: 12px; border-bottom: 1px solid #111; font-size: 13px; white-space: nowrap; }
         
-        /* Sticky Car Column */
         .sticky-col { position: sticky; left: 0; background: #0a0a0a; z-index: 10; border-right: 1px solid #222; font-weight: bold; color: var(--accent); }
 
         .stamp-time { color: var(--safe); font-weight: bold; }
@@ -74,7 +71,6 @@ we<!DOCTYPE html>
         appId: "1:1026958520151:web:166551b9b18361668f447d"
     };
 
-    // EXACT MATCH to INTERNAL_ROUTE in tracker app v5.3
     const ROUTE_CONFIG = {
         "event_name": "GEOSTAMP v5.3",
         "controls": [
@@ -100,7 +96,6 @@ we<!DOCTYPE html>
         const hRow = document.getElementById('table-header');
         const totalTh = hRow.querySelector('.total-count');
         
-        // Clear existing dynamic headers if any
         const existingThs = hRow.querySelectorAll('th:not(.sticky-col):not(.total-count)');
         existingThs.forEach(th => th.remove());
 
@@ -124,7 +119,6 @@ we<!DOCTYPE html>
                 return;
             }
 
-            // Sort cars numerically (Car_1, Car_2, Car_10...)
             const sortedCars = Object.keys(data).sort((a, b) => {
                 const nA = parseInt(a.replace('Car_', '')) || 0;
                 const nB = parseInt(b.replace('Car_', '')) || 0;

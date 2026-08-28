@@ -3,20 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEOSTAMP LIVE RESULTS</title>
+    <title>CEIR AIL LAW - LIVE RESULTS</title>
     <style>
-        :root { --bg: #050505; --accent: #f1c40f; --text: #eee; --safe: #2ecc71; --empty: #333; --danger: #e74c3c; }
-        body { font-family: monospace; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
-        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
-        .live-indicator { font-size: 10px; color: var(--safe); font-weight: bold; animation: blink 2s infinite; }
-        .table-container { width: 100%; overflow-x: auto; border: 1px solid #222; border-radius: 4px; background: #0a0a0a; }
-        table { width: 100%; border-collapse: collapse; min-width: 900px; } 
-        th { background: #111; color: var(--accent); padding: 12px; text-align: left; font-size: 10px; border-bottom: 2px solid #222; text-transform: uppercase; position: sticky; top: 0; z-index: 5; }
-        td { padding: 12px; border-bottom: 1px solid #111; font-size: 13px; white-space: nowrap; }
-        .sticky-col { position: sticky; left: 0; background: #0a0a0a; z-index: 10; border-right: 1px solid #222; font-weight: bold; color: var(--accent); }
-        .stamp-time { color: var(--safe); font-weight: bold; }
-        .total-count { background: #111; font-weight: bold; color: var(--accent); text-align: center; border-left: 2px solid #222; }
-        .violation-row { background: rgba(231, 76, 60, 0.15) !important; }
+        :root { 
+            --bg: #050505; 
+            --accent: #f1c40f; 
+            --text: #eee; 
+            --safe: #2ecc71; 
+            --empty: #333; 
+            --tc: #e67e22;
+        }
+        body { 
+            font-family: monospace; 
+            background: var(--bg); 
+            color: var(--text); 
+            padding: 15px; 
+            margin: 0; 
+        }
+        .header { 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 10px; 
+            margin-bottom: 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-end; 
+        }
+        .live-indicator { 
+            font-size: 10px; 
+            color: var(--safe); 
+            font-weight: bold; 
+            animation: blink 2s infinite; 
+        }
+        .table-container { 
+            width: 100%; 
+            overflow-x: auto; 
+            border: 1px solid #222; 
+            border-radius: 4px; 
+            background: #0a0a0a; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            min-width: 1100px; 
+        } 
+        th { 
+            background: #111; 
+            color: var(--accent); 
+            padding: 12px; 
+            text-align: left; 
+            font-size: 10px; 
+            border-bottom: 2px solid #222; 
+            text-transform: uppercase; 
+            position: sticky; 
+            top: 0; 
+            z-index: 5; 
+        }
+        td { 
+            padding: 12px; 
+            border-bottom: 1px solid #111; 
+            font-size: 13px; 
+            white-space: nowrap; 
+        }
+        .sticky-col { 
+            position: sticky; 
+            left: 0; 
+            background: #0a0a0a; 
+            z-index: 10; 
+            border-right: 1px solid #222; 
+            font-weight: bold; 
+            color: var(--accent); 
+        }
+        .stamp-time { 
+            color: var(--safe); 
+            font-weight: bold; 
+        }
+        .total-count { 
+            background: #111; 
+            font-weight: bold; 
+            color: var(--accent); 
+            text-align: center; 
+            border-left: 2px solid #222; 
+        }
         @keyframes blink { 50% { opacity: 0.5; } }
     </style>
 </head>
@@ -30,7 +97,12 @@
     </div>
     <div class="table-container">
         <table>
-            <thead><tr id="table-header"><th class="sticky-col">CAR</th><th class="total-count">VISITS</th></tr></thead>
+            <thead>
+                <tr id="table-header">
+                    <th class="sticky-col">CAR</th>
+                    <th class="total-count">VISITS</th>
+                </tr>
+            </thead>
             <tbody id="results-body"></tbody>
         </table>
     </div>
@@ -49,30 +121,31 @@
         appId: "1:1026958520151:web:166551b9b18361668f447d"
     };
 
+    // Route matching GEOSTAMP LIVE v5.8
     const ROUTE_CONFIG = {
-        "event_name": "GeoStamp",
+        "event_name": "Geostamp",
         "controls": [
             { "id": "START", "type": "START" },
-            { "id": "S1", "type": "SCATTER" },
-            { "id": "S2", "type": "SCATTER" },
-            { "id": "S3", "type": "SCATTER" },
-            { "id": "S4", "type": "SCATTER" },
-            { "id": "CONTROL X1", "type": "BLACKSPOT" },
-            { "id": "CONTROL X2", "type": "BLACKSPOT" },
-            { "id": "CONTROL X3", "type": "BLACKSPOT" },
-            { "id": "CONTROL 1", "type": "SCATTER" },
-            { "id": "CONTROL 2", "type": "SCATTER" },
-            { "id": "CONTROL 3", "type": "SCATTER" },
-            { "id": "CONTROL 4", "type": "SCATTER" },
-            { "id": "CONTROL 5", "type": "SCATTER" },
-            { "id": "CONTROL 6", "type": "SCATTER" },
-            { "id": "CONTROL 7", "type": "SCATTER" },
-            { "id": "CONTROL 8", "type": "SCATTER" },
-            { "id": "CONTROL 9", "type": "SCATTER" },
+            { "id": "PC 1", "type": "PC" },
+            { "id": "PC 2", "type": "PC" },
+            { "id": "PC 3", "type": "PC" },
+            { "id": "PC 4", "type": "PC" },
+            { "id": "PC 5", "type": "PC" },
+            { "id": "PC 6", "type": "PC" },
+            { "id": "PC 7", "type": "PC" },
+            { "id": "PC 8", "type": "PC" },
+            { "id": "PC 9", "type": "PC" },
+            { "id": "PC 10", "type": "PC" },
             { "id": "TC 1", "type": "TC" },
             { "id": "TC 2", "type": "TC" },
             { "id": "TC 3", "type": "TC" },
             { "id": "TC 4", "type": "TC" },
+            { "id": "TC 5", "type": "TC" },
+            { "id": "TC 6", "type": "TC" },
+            { "id": "TC 7", "type": "TC" },
+            { "id": "TC 8", "type": "TC" },
+            { "id": "TC 9", "type": "TC" },
+            { "id": "TC 10", "type": "TC" },
             { "id": "FINISH", "type": "FINISH" }
         ]
     };
@@ -84,43 +157,52 @@
         document.getElementById('event-title').textContent = ROUTE_CONFIG.event_name;
         const hRow = document.getElementById('table-header');
         const totalTh = hRow.querySelector('.total-count');
+
+        // Dynamically build headers for all 22 controls
         ROUTE_CONFIG.controls.forEach(c => {
             const th = document.createElement('th');
-            th.innerHTML = `${c.id}<br><small style="color:#666;">${c.type}</small>`;
+            let typeColor = '#666';
+            if (c.type === 'TC') typeColor = 'var(--tc)';
+            if (c.type === 'START' || c.type === 'FINISH') typeColor = 'var(--accent)';
+
+            th.innerHTML = `${c.id}<br><small style="color:${typeColor};">${c.type}</small>`;
             hRow.insertBefore(th, totalTh);
         });
+
+        // Real-time listener for Firebase DB
         onValue(ref(db, 'GEOSCATTER'), (snap) => {
             const data = snap.val();
             const tbody = document.getElementById('results-body');
             tbody.innerHTML = '';
             if (!data) return;
 
+            // Sort cars numerically (Car_1, Car_2, etc.)
             Object.keys(data).sort((a,b) => (parseInt(a.split('_')[1])||0) - (parseInt(b.split('_')[1])||0)).forEach(carKey => {
                 const carData = data[carKey];
-                let visits = 0, isViolator = false, rowHtml = `<td class="sticky-col">${carKey.split('_')[1]}</td>`;
+                let visits = 0;
+                let rowHtml = `<td class="sticky-col">${carKey.split('_')[1]}</td>`;
 
                 ROUTE_CONFIG.controls.forEach(ctrl => {
-                    const legacyId = ctrl.id.replace('TC ', 'PC ');
-                    const rec = carData[ctrl.id] || carData[legacyId];
+                    const rec = carData[ctrl.id];
 
                     if (rec) {
                         visits++;
-                        let content = `<span class="stamp-time">${rec.time}</span>`;
-                        if (rec.avgSpeed) content += `<br><span style="color:var(--accent);font-size:10px;">${rec.avgSpeed} MPH</span>`;
-                        if (rec.violation) { content = `<span style="color:var(--danger)">⚠️ X</span>`; isViolator = true; }
-                        rowHtml += `<td>${content}</td>`;
-                    } else { rowHtml += `<td>---</td>`; }
+                        rowHtml += `<td><span class="stamp-time">${rec.time}</span></td>`;
+                    } else { 
+                        rowHtml += `<td style="color:#333;">---</td>`; 
+                    }
                 });
 
                 rowHtml += `<td class="total-count">${visits}/${ROUTE_CONFIG.controls.length}</td>`;
                 const tr = document.createElement('tr');
-                if (isViolator) tr.className = "violation-row";
                 tr.innerHTML = rowHtml;
                 tbody.appendChild(tr);
             });
-            document.getElementById('status-text').textContent = `SYNCED: ${new Date().toLocaleTimeString()}`;
+
+            document.getElementById('status-text').textContent = `LAST SYNCED: ${new Date().toLocaleTimeString()}`;
         });
     }
+
     initTable();
 </script>
 </body>

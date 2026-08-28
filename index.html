@@ -100,7 +100,9 @@
                 let visits = 0, isViolator = false, rowHtml = `<td class="sticky-col">${carKey.split('_')[1]}</td>`;
 
                 ROUTE_CONFIG.controls.forEach(ctrl => {
-                    const rec = carData[ctrl.id];
+                    const legacyId = ctrl.id.replace('TC ', 'PC ');
+                    const rec = carData[ctrl.id] || carData[legacyId];
+
                     if (rec) {
                         visits++;
                         let content = `<span class="stamp-time">${rec.time}</span>`;
